@@ -1,12 +1,4 @@
-assert re_parse('') is None
-assert re_parse('.') == 'dot'
-assert re_parse('a') == 'a'
-assert re_parse('ab') == ('cat', 'a', 'b')
-assert re_parse('a|b') == ('split', 'a', 'b')
-assert re_parse('a+') == ('repeat', 'a', 1, float('inf'))
-assert re_parse('a{3,6}') == ('repeat', 'a', 3 ,6)
-assert re_parse('a|bc') == ('split', 'a', ('cat', 'b', 'c'))
-
+RE_REPEAT_LIMIT = 1000
 # a|b|c|.........
 def parse_split(r, idx):
     idx, prev = parse_concat(r, idx)
@@ -103,3 +95,12 @@ def re_parse(r):
         # parsing stopped at a bad ")"
         raise Exception('unexpected ")"')
     return node
+
+assert re_parse('') is None
+assert re_parse('.') == 'dot'
+assert re_parse('a') == 'a'
+assert re_parse('ab') == ('cat', 'a', 'b')
+assert re_parse('a|b') == ('split', 'a', 'b')
+assert re_parse('a+') == ('repeat', 'a', 1, float('inf'))
+assert re_parse('a{3,6}') == ('repeat', 'a', 3, 6)
+assert re_parse('a|bc') == ('split', 'a', ('cat', 'b', 'c'))
