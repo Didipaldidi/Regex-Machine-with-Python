@@ -96,6 +96,37 @@ def re_parse(r):
         raise Exception('unexpected ")"')
     return node
 
+# the backtracking method is pretty much a brute force method
+# can also add some caching to elimate duplicate idx
+def match_backtrack(node, text, idx):
+    if node is None:
+        yield idx #empty string
+    elif node == "dont":
+        if idx < len(text):
+            yield idx + 1
+    elif isinstance(node, str):
+        assert len(node) == 1 # single char
+        if idx < len(text) and text[idx] == node:
+            yield idx + 1
+    elif node[0] == "cat":
+        # the 'yield from' is equivalent to:
+        # for idx1 in match_backtrack_concat(node, text, idx):
+        #   yield idx1
+        yield from match_backtrack_concat(node, text, idx)
+    elif node[0] == "split":
+        yield from match_backtrack(node[1], text, idx)
+        yield from match_backtrack(node[2], text, idx)
+    elif node[0] == "repeat":
+        yield from match_backtrack_repeat(node, text, idx)
+    else:
+        assert not 'reachable'
+
+def match_backtrack_concat(node, text, idx):
+    print()
+def match_backtrack_repeat(node, text, idx):
+    print()
+
+
 assert re_parse('') is None
 assert re_parse('.') == 'dot'
 assert re_parse('a') == 'a'
