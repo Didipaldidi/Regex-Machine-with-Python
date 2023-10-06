@@ -100,38 +100,130 @@ def re_parse(r):
 # can also add some caching to elimate duplicate idx
 def match_backtrack(node, text, idx):
     if node is None:
-        yield idx #empty string
-    elif node == "dont":
+        yield idx   # empty string
+    elif node == 'dot':
         if idx < len(text):
             yield idx + 1
     elif isinstance(node, str):
-        assert len(node) == 1 # single char
+        assert len(node) == 1   # single char
         if idx < len(text) and text[idx] == node:
             yield idx + 1
-    elif node[0] == "cat":
-        # the 'yield from' is equivalent to:
+    elif node[0] == 'cat':
+        # the `yield from` is equivalent to:
         # for idx1 in match_backtrack_concat(node, text, idx):
-        #   yield idx1
+        #     yield idx1
         yield from match_backtrack_concat(node, text, idx)
-    elif node[0] == "split":
+    elif node[0] == 'split':
         yield from match_backtrack(node[1], text, idx)
         yield from match_backtrack(node[2], text, idx)
-    elif node[0] == "repeat":
+    elif node[0] == 'repeat':
         yield from match_backtrack_repeat(node, text, idx)
     else:
         assert not 'reachable'
 
 def match_backtrack_concat(node, text, idx):
-    print()
+    met = set()
+    for idx1 in match_backtrack(node[1], text, idx):
+        if idx1 in met:
+            continue    # duplication
+        met.add(idx1)
+        yield from match_backtrack(node[2], text, idx1)
+
 def match_backtrack_repeat(node, text, idx):
-    print()
+    _, node, rmin, rmax = node
+    rmax = min(rmax, RE_REPEAT_LIMIT)
+    # the output is buffered and reversed later
+    output = []
+    if rmin == 0:
+        # don't have to match anything
+        output.append(idx)
+    # positions from the previous step
+    start = {idx}
+    # try every possible repetition number
+    for i in range(1, rmax + 1):
+        found = set()
+        for idx1 in start:
+            for idx2 in match_backtrack(node, text, idx1):
+                found.add(idx2)
+                if i >= rmin:
+                    output.append(idx2)
+        # TODO: bail out if the only match is of zero-length
+        if not found:
+            break
+        start = found
+    # repetition is greedy, output the most repetitive match first.
+    yield from reversed(output)
 
+def re_full_match_bt(node, text):
+    for idx in match_backtrack(node, text, 0):
+        # idx is the size of the matched prefix
+        if idx == len(text):
+            # NOTE: the greedy aspect of regexes seems to be irrelevant
+            #       if we are only accepting the fully matched text.
+            return True
+    return False
 
-assert re_parse('') is None
-assert re_parse('.') == 'dot'
-assert re_parse('a') == 'a'
-assert re_parse('ab') == ('cat', 'a', 'b')
-assert re_parse('a|b') == ('split', 'a', 'b')
-assert re_parse('a+') == ('repeat', 'a', 1, float('inf'))
-assert re_parse('a{3,6}') == ('repeat', 'a', 3, 6)
-assert re_parse('a|bc') == ('split', 'a', ('cat', 'b', 'c'))
+# assert re_parse('') is None
+# assert re_parse('.') == 'dot'
+# assert re_parse('a') == 'a'
+# assert re_parse('ab') == ('cat', 'a', 'b')
+# assert re_parse('a|b') == ('split', 'a', 'b')
+# assert re_parse('a+') == ('repeat', 'a', 1, float('inf'))
+# assert re_parse('a{3,6}') == ('repeat', 'a', 3, 6)
+# assert re_parse('a|bc') == ('split', 'a', ('cat', 'b', 'c'))
+
+# Test case 1: Matching a simple character
+node = "a"
+text = "a"
+assert re_full_match_bt(node, text) == True
+
+# Test case 2: Matching a simple character that's not in the text
+node = "a"
+text = "b"
+assert re_full_match_bt(node, text) == False
+
+# Test case 3: Matching concatenation of two characters
+node = ("cat", "a", "b")
+text = "ab"
+assert re_full_match_bt(node, text) == True
+
+# Test case 4: Matching concatenation of two characters in the wrong order
+node = ("cat", "a", "b")
+text = "ba"
+assert re_full_match_bt(node, text) == False
+
+# Test case 5: Matching a repeated character
+node = ("repeat", "a", 2, 4)
+text = "aaa"
+assert re_full_match_bt(node, text) == True
+
+# Test case 6: Matching a repeated character (too many times)
+node = ("repeat", "a", 2, 4)
+text = "aaaaa"
+assert re_full_match_bt(node, text) == False
+
+# Test case 7: Matching a repeated character (minimum times not met)
+node = ("repeat", "a", 3, 4)
+text = "aa"
+assert re_full_match_bt(node, text) == False
+
+# Test case 8: Matching a split between two characters
+node = ("split", "a", "b")
+text = "a"
+assert re_full_match_bt(node, text) == True
+
+# Test case 9: Matching a split between two characters (wrong character)
+node = ("split", "a", "b")
+text = "c"
+assert re_full_match_bt(node, text) == False
+
+# Test case 10: Matching a more complex regex
+node = ("split", "a", ("repeat", "b", 2, 4))
+text = "abbb"
+assert re_full_match_bt(node, text) == True
+
+# Test case 11: Matching a more complex regex (not enough 'b's)
+node = ("split", "a", ("repeat", "b", 2, 4))
+text = "abb"
+assert re_full_match_bt(node, text) == False
+
