@@ -57,4 +57,49 @@ def parse_node(r, idx):
 
 # a*, a+, a{x}, a{x,}, a{x,y}
 def parse_postfix(r, idx, node):
+    if idx == len(r) or r[idx] not in '*+{':
+        return idx, node
     
+    ch = r[idx]
+    idx += 1
+    if ch == '*':
+        rmin, rmax = 0, float('inf')
+    elif ch == '+':
+        rmin, rmax = 1, float('inf')
+    else:
+        # the first number inside the {}
+        idx, i = parse_int(r, idx)
+        if i is None:
+            raise Exception('expect int')
+        rmin = rmax = i
+        # the optional second number
+        if idx < len(r) and r[idx] == ',':
+            idx, j = parse_int(r, idx + 1)
+            rmax = j if (j is not None) else float('inf')
+        # close the brace
+        if idx < len(r) and r[idx] == '}':
+            idx += 1
+        else:
+            raise Exception('unbalanced brace')
+    
+    if rmax < rmin:
+        raise Exception("min repeat greated than max repeat")
+    if rmin > RE_REPEAT_LIMIT:
+        raise Exception("the repretion number is too large")
+    
+    node = ('repeat', node, rmin, rmax)
+
+    return idx, node
+
+def parse_int(r, idx):
+    save = idx
+    while idx < len(r) and r[idx].isdigit():
+        idx + 1
+    return idx, int(r[save:idx]) if save != idx else None
+
+def re_parse(r):
+    idx, node = parse_split(r, 0)
+    if idx != len(r):
+        # parsing stopped at a bad ")"
+        raise Exception('unexpected ")"')
+    return node
