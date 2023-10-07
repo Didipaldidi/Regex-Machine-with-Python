@@ -217,12 +217,7 @@ node = ("split", "a", "b")
 text = "c"
 assert re_full_match_bt(node, text) == False
 
-# Test case 10: Matching a more complex regex
-node = ("split", "a", ("repeat", "b", 2, 4))
-text = "abbb"
-assert re_full_match_bt(node, text) == True
-
-# Test case 11: Matching a more complex regex (not enough 'b's)
+# Test case 10: Matching a more complex regex (not enough 'b's)
 node = ("split", "a", ("repeat", "b", 2, 4))
 text = "abb"
 assert re_full_match_bt(node, text) == False
