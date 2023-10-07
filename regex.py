@@ -209,9 +209,21 @@ def nfa_make_repeat(node, start, end, id2node):
     if rmin == 0:
         start.append((None, end))
 
+## TRAVERSING THE GRAPH
+def re_full_match_nfa(node, text):
+    # build the graph
+    start, end = [], []
+    id2node = {id(start): start, id(end): end}
+    nfa_make(node, start, end, id2node)
 
-
-
+    # explore and expand the intial position set
+    node_set = {(id(start), ())}
+    nfa_expand(node_set, id2node)
+    for ch in text:
+        # move to the next position set
+        node_set = nfa_step(node_set, ch, id2node)
+        nfa_expand(node_set, id2node)
+    return (id(end), ()) in node_set
 
 # assert re_parse('') is None
 # assert re_parse('.') == 'dot'
