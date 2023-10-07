@@ -266,7 +266,25 @@ def nfa_expand(node_set, id2node):
                 node_set.add(state)
                 start.append(state)
 
+def nfa_boss(node, kv):
+    _, door_in, end, rmin, rmax = node
+    key = id(door_in)   # this is unique for identifying the boss
+    kv, cnt = kv_increase(kv, key)
+    if cnt < rmax:
+        # repeat the level again
+        yield (door_in, kv)
+    if rmin <= cnt <= rmax:
+        # pass the level
+        yield (end, kv_delete(kv, key))
 
+def kv_increase(kv, key):
+    kv = dict(kv)
+    val = kv.get(key, 0) + 1
+    kv[key] = val
+    return tuple(sorted(kv.items())), val
+
+def kv_delete(kv, key):
+    return tuple((k, v) for k, v in kv if k != key)
 
 # assert re_parse('') is None
 # assert re_parse('.') == 'dot'
