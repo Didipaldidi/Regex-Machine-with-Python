@@ -225,6 +225,49 @@ def re_full_match_nfa(node, text):
         nfa_expand(node_set, id2node)
     return (id(end), ()) in node_set
 
+# nfa_step consumes an input character and finds the next possible position set
+def nfa_step(node_set, ch, id2node):
+    assert len(ch) == 1
+    next_nodes = set()
+    for node, kv in node_set:
+        node = id2node[node]
+        # only normal nodes since bosses were handled by the nfa_expand
+        assert not isinstance(node, tuple), 'unexpected boss'
+        for cond, dst in node:
+            if cond == 'dot' or cond =='ch':
+                next_nodes.add((id(dst), kv))
+    return next_nodes
+
+# nfa_expand traverse free links
+# the node ID is used instead of the node itself, this is for the hash set
+
+# expand the position set via free links and boss nodes
+def nfa_expand(node_set, id2node):
+    start = list(node_set)
+    while start:
+        new_nodes = []
+        for node, kv in start:
+            node = id2node[node]
+            if isinstance(node, tuple) and node[0] == 'boss':
+                # a boss, replace it with the outcome
+                node_set.remove((id(node), kv))
+                for dst, kv in nfa_boss(node, kv):
+                    new_nodes.append((id(dst), kv))
+            else:
+                # explore new nodes via free links
+                for cond, dst in node:
+                    if cond is None:
+                        new_nodes.append((id(dst), kv))
+
+        # newly added nodes will be used for the next iteration
+        start = []
+        for state in new_nodes:
+            if state not in node_set:
+                node_set.add(state)
+                start.append(state)
+
+
+
 # assert re_parse('') is None
 # assert re_parse('.') == 'dot'
 # assert re_parse('a') == 'a'
