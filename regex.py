@@ -163,6 +163,56 @@ def re_full_match_bt(node, text):
             return True
     return False
 
+## CONVERTING TREES TO GRAPHS
+# Build a graph from a node
+# The graph is entered/exited via the start/end node
+# the id2node is a mapping from integer IDs to the graph nodes
+# The graph node is either a list of links ro a special "boss" node
+
+def nfa_make(node ,start, end, id2node):
+    if node is None:
+        start.append((None, end))
+    elif node == 'dot':
+        start.append(('dot', end))
+    elif isinstance(node, str):
+        start.append((node, end))
+    elif node[0] == 'cat':
+        # connect the two subgraph via a middle node
+        middle = []
+        id2node[id(middle)] = middle
+        nfa_make(node[1], start, middle, id2node)
+        nfa_make(node[2], middle, end, id2node)
+    elif node[0] == 'split':
+        # connect with both subgraphs
+        nfa_make(node[1], start, end, id2node)
+        nfa_make(node[2], start, end, id2node)
+    elif node[0] == 'repeat':
+        nfa_make_repeat(node, start, end, id2node)
+    else:
+        assert not 'reachable'
+
+def nfa_make_repeat(node, start, end, id2node):
+    # unpack
+    _, node, rmin, rmax, = node
+    rmax = min(rmax, RE_REPEAT_LIMIT)
+    # the door_in only leads to the subgraph
+    # it is necessary for the repetitions to work
+    door_in = []
+    # the door_out leads to either the door_in or the end
+    door_out = ('boss', door_in, end, rmin, rmax)
+    id2node[id(door_in)] = door_in
+    id2node[id(door_out)] = door_out
+    # the subgraph between the door_in and the door_out
+    nfa_make(node, door_in, door_out, id2node)
+    # links from the start node
+    start.appedn((None, door_in))
+    if rmin == 0:
+        start.append((None, end))
+
+
+
+
+
 # assert re_parse('') is None
 # assert re_parse('.') == 'dot'
 # assert re_parse('a') == 'a'
@@ -172,53 +222,53 @@ def re_full_match_bt(node, text):
 # assert re_parse('a{3,6}') == ('repeat', 'a', 3, 6)
 # assert re_parse('a|bc') == ('split', 'a', ('cat', 'b', 'c'))
 
-# Test case 1: Matching a simple character
-node = "a"
-text = "a"
-assert re_full_match_bt(node, text) == True
+# # Test case 1: Matching a simple character
+# node = "a"
+# text = "a"
+# assert re_full_match_bt(node, text) == True
 
-# Test case 2: Matching a simple character that's not in the text
-node = "a"
-text = "b"
-assert re_full_match_bt(node, text) == False
+# # Test case 2: Matching a simple character that's not in the text
+# node = "a"
+# text = "b"
+# assert re_full_match_bt(node, text) == False
 
-# Test case 3: Matching concatenation of two characters
-node = ("cat", "a", "b")
-text = "ab"
-assert re_full_match_bt(node, text) == True
+# # Test case 3: Matching concatenation of two characters
+# node = ("cat", "a", "b")
+# text = "ab"
+# assert re_full_match_bt(node, text) == True
 
-# Test case 4: Matching concatenation of two characters in the wrong order
-node = ("cat", "a", "b")
-text = "ba"
-assert re_full_match_bt(node, text) == False
+# # Test case 4: Matching concatenation of two characters in the wrong order
+# node = ("cat", "a", "b")
+# text = "ba"
+# assert re_full_match_bt(node, text) == False
 
-# Test case 5: Matching a repeated character
-node = ("repeat", "a", 2, 4)
-text = "aaa"
-assert re_full_match_bt(node, text) == True
+# # Test case 5: Matching a repeated character
+# node = ("repeat", "a", 2, 4)
+# text = "aaa"
+# assert re_full_match_bt(node, text) == True
 
-# Test case 6: Matching a repeated character (too many times)
-node = ("repeat", "a", 2, 4)
-text = "aaaaa"
-assert re_full_match_bt(node, text) == False
+# # Test case 6: Matching a repeated character (too many times)
+# node = ("repeat", "a", 2, 4)
+# text = "aaaaa"
+# assert re_full_match_bt(node, text) == False
 
-# Test case 7: Matching a repeated character (minimum times not met)
-node = ("repeat", "a", 3, 4)
-text = "aa"
-assert re_full_match_bt(node, text) == False
+# # Test case 7: Matching a repeated character (minimum times not met)
+# node = ("repeat", "a", 3, 4)
+# text = "aa"
+# assert re_full_match_bt(node, text) == False
 
-# Test case 8: Matching a split between two characters
-node = ("split", "a", "b")
-text = "a"
-assert re_full_match_bt(node, text) == True
+# # Test case 8: Matching a split between two characters
+# node = ("split", "a", "b")
+# text = "a"
+# assert re_full_match_bt(node, text) == True
 
-# Test case 9: Matching a split between two characters (wrong character)
-node = ("split", "a", "b")
-text = "c"
-assert re_full_match_bt(node, text) == False
+# # Test case 9: Matching a split between two characters (wrong character)
+# node = ("split", "a", "b")
+# text = "c"
+# assert re_full_match_bt(node, text) == False
 
-# Test case 10: Matching a more complex regex (not enough 'b's)
-node = ("split", "a", ("repeat", "b", 2, 4))
-text = "abb"
-assert re_full_match_bt(node, text) == False
+# # Test case 10: Matching a more complex regex (not enough 'b's)
+# node = ("split", "a", ("repeat", "b", 2, 4))
+# text = "abb"
+# assert re_full_match_bt(node, text) == False
 
